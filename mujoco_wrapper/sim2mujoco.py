@@ -48,7 +48,7 @@ parser.add_argument_group("st_rl", description="Arguments for RSL-RL agent.")
     # -- experiment arguments
 parser.add_argument(
         "--experiment_name", type=str, default=None, help="Name of the experiment folder where logs will be stored.")
-parser.add_argument("--logs", type=str, default="./../../../logs/st_rl", help="Name of the log folder to resume from.")
+parser.add_argument("--logs", type=str, default="/home/thomas/workspace/lumos_ws/st_gym/logs/st_rl/", help="Name of the log folder to resume from.")
 parser.add_argument("--load_run", type=str, default=None, help="Name of the run folder to resume from.")
 parser.add_argument("--policy_path", type=str, default=None, help="The path of onnx model path of trained policy")
 parser.add_argument("--model_path", type=str, default=None, help="Robot XML model path")
@@ -64,6 +64,7 @@ if args_cli.video:
 # clear out sys.argv for Hydra
 sys.argv = [sys.argv[0]] + hydra_args
 print(f"Hydr args: {hydra_args}")
+print(f"logs folder: {args_cli.logs}")
 
 def add_visual_capsule(scene, from_pos, to_pos, radius, color_rgba):
     # Ensure proper dtype and shape

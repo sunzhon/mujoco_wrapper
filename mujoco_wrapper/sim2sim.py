@@ -588,6 +588,7 @@ class InferenceRunner:
         self.input_name = self.ort_session.get_inputs()[0].name
         self.input_shape = self.ort_session.get_inputs()[0].shape
         self.output_name = self.ort_session.get_outputs()[0].name
+        self.output_shape = self.ort_session.get_outputs()[0].shape
 
         if "Recurrent" in self.cfg.policy.class_name:
             self.is_recurrent=True
@@ -776,6 +777,11 @@ class InferenceRunner:
         if test_action_data_path is not None:
             test_action = np.loadtxt(test_action_data_path, delimiter=" ")
 
+        if test_obs is None:
+            test_obs = np.zeros(1,self.input_shape)
+        if test_action is None:
+            test_action = np.zeros(1,self.output_shape)
+
         test_obs = test_obs.astype(np.float32)
         test_action = test_action.astype(np.float32)
 
@@ -792,6 +798,9 @@ class InferenceRunner:
         # Evaluation
         rmse = np.sqrt(np.mean((test_action - rknn_action[0]) ** 2))
         logger.info(f"RKNN Action RMSE: {rmse}")
+
+        mj_rknn_action_path = os.path.join(os.path.dirname(self.rknn_model_path), "store_mj_rknn_action.txt")
+        np.savetxt(mj_rknn_action_path, rknn_action, fmt="%.4f")
 
         return rknn_action
 

@@ -234,14 +234,12 @@ def run_mujoco(env_cfg: DictConfig, agent_cfg:DictConfig):
             env.save_log(os.path.dirname(runner.policy_path))
         if args_cli.export_rknn:
             # test rknn  and save testing results
-            store_rknn_action = runner.test_rknn(store_obs, store_action)
-            mj_rknn_action_path = os.path.join(eval_result_folder, "store_mj_rknn_action.txt")
-            np.savetxt(mj_rknn_action_path, store_rknn_action, fmt="%.4f")
+            store_rknn_action = runner.test_rknn(env.store_obs, env.store_action)
 
             # test rknn AGAIN with data from file and save testing results
-            store_rknn_action = runner.test_rknn(test_obs_data_path=mj_onnx_obs_path, test_action_data_path=mj_onnx_action_path)
-            mj_rknn_action_path = os.path.join(eval_result_folder, "store_mj_rknn_action.txt")
-            np.savetxt(mj_rknn_action_path, store_rknn_action, fmt="%.4f")
+            #store_rknn_action = runner.test_rknn(test_obs_data_path=mj_onnx_obs_path, test_action_data_path=mj_onnx_action_path)
+            #mj_rknn_action_path = os.path.join(eval_result_folder, "store_mj_rknn_action.txt")
+            #np.savetxt(mj_rknn_action_path, store_rknn_action, fmt="%.4f")
             logger.info(f"Successfully export rknn and test it in {eval_result_folder}")
 
 

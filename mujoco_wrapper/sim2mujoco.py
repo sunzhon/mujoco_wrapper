@@ -48,7 +48,7 @@ parser.add_argument_group("st_rl", description="Arguments for RSL-RL agent.")
     # -- experiment arguments
 parser.add_argument(
         "--experiment_name", type=str, default=None, help="Name of the experiment folder where logs will be stored.")
-parser.add_argument("--logs", type=str, default="/home/thomas/workspace/lumos_ws/st_gym/logs/st_rl/", help="Name of the log folder to resume from.")
+parser.add_argument("--logs", type=str, default="/home/blackbox/workspace/lumos_ws/st_gym/logs/st_rl/", help="Name of the log folder to resume from.")
 parser.add_argument("--load_run", type=str, default=None, help="Name of the run folder to resume from.")
 parser.add_argument("--policy_path", type=str, default=None, help="The path of onnx model path of trained policy")
 parser.add_argument("--model_path", type=str, default=None, help="Robot XML model path")
@@ -134,7 +134,7 @@ def run_mujoco(env_cfg: DictConfig, agent_cfg:DictConfig):
         env_cfg.ref_motion.motion_files = glob.glob(os.path.join(os.getenv("HOME"),env_cfg.ref_motion.motion_files[0][env_cfg.ref_motion.motion_files[0].find("workspace"):]))
     if len(env_cfg.ref_motion.motion_files) < 1:
         #env_cfg.ref_motion.motion_files = glob.glob("/home/thomas/workspace/lumos_ws/humanoid_demo_retarget/sources/data/motions/lus2_joint21/pkl/dance2_subject4_1871_6771_fps25.pkl")
-        env_cfg.ref_motion.motion_files = glob.glob(f"{os.getenv('HOME')}/workspace/lumos_ws/humanoid_demo_retarget/sources/data/motions/lus2_joint21/pkl/*")
+        env_cfg.ref_motion.motion_files = glob.glob(f"{os.getenv('HOME')}/workspace/lumos_ws/st_gym/third_party/motions/lus2_joint21/pkl/*")
         print(f"The ref motion for training do not exist, change to use {env_cfg.ref_motion.motion_files}")
 
     #env_cfg.ref_motion.motion_files = glob.glob(f"{os.getenv('HOME')}/workspace/lumos_ws/humanoid_demo_retarget/sources/data/motions/lus2_joint21/pkl/Mma_Kick_fps30.pkl")
@@ -183,6 +183,8 @@ def run_mujoco(env_cfg: DictConfig, agent_cfg:DictConfig):
         cam = viewer.cam
         cam.distance = 4.0 ;cam.azimuth = 135; cam.elevation = -10; cam.lookat = [0,0,0]
         cam.type = mujoco.mjtCamera.mjCAMERA_TRACKING; cam.trackbodyid=1;
+
+        viewer.opt.geomgroup[:] = [0, 1, 1, 1, 0, 0]
 
         # adding capsule gemos for vis traj tracking
         add_visual_capsule(viewer.user_scn, np.zeros(3), np.array([0.001, 0, 0]), 0.04, np.array([1, 0, 0, 1]))

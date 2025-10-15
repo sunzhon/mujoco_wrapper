@@ -254,14 +254,14 @@ class MujocoSimEnv:
 
         # get init state of root and dof
         init_dof_pos_index = [self.ref_motion.trajectory_fields.index(key) for key in [f+"_dof_pos" for f in self.mujoco_joint_names]]
-        self.init_joint_pos = self.ref_motion.preloaded_s[:,0,init_dof_pos_index]
+        self.init_joint_pos = self.ref_motion.preloaded_s[0,init_dof_pos_index]
 
         init_dof_vel_index = [self.ref_motion.trajectory_fields.index(key) for key in [f+"_dof_vel" for f in self.mujoco_joint_names]]
-        self.init_joint_vel = self.ref_motion.preloaded_s[:,0,init_dof_vel_index]
+        self.init_joint_vel = self.ref_motion.preloaded_s[0,init_dof_vel_index]
         
         root_pos_fields = ['root_pos_x', 'root_pos_y', 'root_pos_z', 'root_rot_w', 'root_rot_x', 'root_rot_y', 'root_rot_z']
         init_root_pos_index = [self.ref_motion.trajectory_fields.index(key) for key in root_pos_fields]
-        self.init_root_pos = self.ref_motion.preloaded_s[:,0,init_root_pos_index]
+        self.init_root_pos = self.ref_motion.preloaded_s[0,init_root_pos_index]
 
     def set_commands(self, velocity_commands):
         self.base_velocity[:,0] =  velocity_commands[0]

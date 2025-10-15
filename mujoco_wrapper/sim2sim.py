@@ -310,29 +310,32 @@ class MujocoSimEnv:
         #4) get keypoint/joints frame location and linear velocity
         body_lin_vel_w=[]
         body_pos_w=[]
-        expressive_link_name = getattr(self.cfg.ref_motion,"expressive_link_name", None)
+        expressive_goal_fields = getattr(self.cfg.ref_motion,"expressive_goal_fields", None)
         vel = np.zeros(6)
-        if expressive_link_name is not None:
-            for name in expressive_link_name:
-                body_id = self.mj_model.body(name).id
-                mujoco.mj_objectVelocity(self.mj_model, self.mj_data, mujoco.mjtObj.mjOBJ_BODY, body_id, vel, 0)
-                body_lin_vel_w.append(torch.tensor(vel[3:], device=self.device, dtype=torch.float32))
-                body_pos_w.append(torch.tensor(self.mj_data.xpos[body_id], device=self.device, dtype=torch.float32))  # (3,)
-            
-            body_lin_vel_w = torch.stack(body_lin_vel_w)
-            body_pos_w = torch.stack(body_pos_w)
+        if expressive_goal_fields is not None:
+            for name in expressive_goal_fields:
+                if "link" in name:
+                    import pdb;pdb.set_trace()
+                    body_id = self.mj_model.body(name).id
+                    mujoco.mj_objectVelocity(self.mj_model, self.mj_data, mujoco.mjtObj.mjOBJ_BODY, body_id, vel, 0)
+                    body_lin_vel_w.append(torch.tensor(vel[3:], device=self.device, dtype=torch.float32))
+                    body_pos_w.append(torch.tensor(self.mj_data.xpos[body_id], device=self.device, dtype=torch.float32))  # (3,)
+                    
+                    # calculate body lin vel in world frame
+                    body_lin_vel_w = torch.stack(body_lin_vel_w)
+                    body_pos_w = torch.stack(body_pos_w)
 
-            # calculate pos and vel in root frame
-            from isaaclab.utils.math import quat_apply_inverse, euler_xyz_from_quat
-            body_pos_b = body_pos_w - base_pos_w         # (envs, bodies, 3)
+                    # calculate pos and vel in root frame
+                    from isaaclab.utils.math import quat_apply_inverse, euler_xyz_from_quat
+                    body_pos_b = body_pos_w - base_pos_w         # (envs, bodies, 3)
 
-            body_pos_b = quat_apply_inverse(base_quat_w.expand(body_pos_b.shape[0], -1), body_pos_b)
-            body_lin_vel_b = quat_apply_inverse(base_quat_w.expand(body_lin_vel_w.shape[0],-1), body_lin_vel_w)
+                    body_pos_b = quat_apply_inverse(base_quat_w.expand(body_pos_b.shape[0], -1), body_pos_b)
+                    body_lin_vel_b = quat_apply_inverse(base_quat_w.expand(body_lin_vel_w.shape[0],-1), body_lin_vel_w)
 
-            body_pos_w = body_pos_w.reshape(self.num_env,-1)
-            body_lin_vel_w = body_lin_vel_w.reshape(self.num_env,-1)  # shape: (num_links, 3)
-            body_pos_b = body_pos_b.reshape(self.num_env, -1)
-            body_lin_vel_b = body_lin_vel_b.reshape(self.num_env, -1)
+                    body_pos_w = body_pos_w.reshape(self.num_env,-1)
+                    body_lin_vel_w = body_lin_vel_w.reshape(self.num_env,-1)  # shape: (num_links, 3)
+                    body_pos_b = body_pos_b.reshape(self.num_env, -1)
+                    body_lin_vel_b = body_lin_vel_b.reshape(self.num_env, -1)
 
         #5) goal status
         ref_fields={}

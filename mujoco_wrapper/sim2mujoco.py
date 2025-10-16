@@ -140,11 +140,10 @@ def run_mujoco(env_cfg: DictConfig, agent_cfg:DictConfig):
     #env_cfg.ref_motion.motion_files = glob.glob(f"{os.getenv('HOME')}/workspace/lumos_ws/humanoid_demo_retarget/sources/data/motions/lus2_joint21/pkl/Mma_Kick_fps30.pkl")
     logger.info(f"Ref motion path: {env_cfg.ref_motion.motion_files}")
 
-    env_cfg.ref_motion.frame_begin = None #0 #175
-    env_cfg.ref_motion.frame_end = None #None #2650
+    env_cfg.ref_motion.frame_begin = 100 #None #0 #175
+    env_cfg.ref_motion.frame_end = 4900 #None #None #2650
     env_cfg.ref_motion.ref_length_s= None #12.1+4
     env_cfg.ref_motion.random_start = False
-    env_cfg.ref_motion.random_start=False
     specify_init_values = {}
     specify_init_values["root_rot_x"] = 0
     specify_init_values["root_rot_y"] = 0

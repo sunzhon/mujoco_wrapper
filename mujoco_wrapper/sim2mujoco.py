@@ -200,7 +200,7 @@ def run_mujoco(env_cfg: DictConfig, agent_cfg:DictConfig):
                 actions = policy(obs) # update policy with higher frq, but use low ref frq
                 if args_cli.saving_data:
                     env.update_log(actions, obs, extras)
-                if(env.ref_motion.frame_idx==env.ref_motion.clip_frame_num-1):
+                if(env.ref_motion.frame_idx==env.ref_motion.clip_frame_num-2):
                     logger.info(f"✅ Done, frame idx is {env.ref_motion.frame_idx}")
                     if not args_cli.saving_data:
                         env.reset()

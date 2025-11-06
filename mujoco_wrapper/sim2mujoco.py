@@ -130,18 +130,18 @@ def run_mujoco(env_cfg: DictConfig, agent_cfg:DictConfig):
         None
     """
     global control_mode, mj_sim_mode, base_velocity
-    if not os.path.isfile(env_cfg.ref_motion.motion_files[0]):
-        env_cfg.ref_motion.motion_files = glob.glob(os.path.join(os.getenv("HOME"),env_cfg.ref_motion.motion_files[0][env_cfg.ref_motion.motion_files[0].find("workspace"):]))
-    if len(env_cfg.ref_motion.motion_files) < 1:
-        #env_cfg.ref_motion.motion_files = glob.glob("/home/thomas/workspace/lumos_ws/humanoid_demo_retarget/sources/data/motions/lus2_joint21/pkl/dance2_subject4_1871_6771_fps25.pkl")
-        env_cfg.ref_motion.motion_files = glob.glob(f"{os.getenv('HOME')}/workspace/lumos_ws/st_gym/third_party/motions/lus2_joint21/pkl/*")
+    if glob.glob(env_cfg.ref_motion.motion_files) == []:
+        env_cfg.ref_motion.motion_files = os.path.join(os.getenv("HOME"),env_cfg.ref_motion.motion_files[env_cfg.ref_motion.motion_files.find("workspace"):])
+    if len(glob.glob(env_cfg.ref_motion.motion_files)) < 1:
+        env_cfg.ref_motion.motion_files = f"{os.getenv('HOME')}/workspace/lumos_ws/st_gym/third_party/motions/lus2_joint21/pkl/*"
         print(f"The ref motion for training do not exist, change to use {env_cfg.ref_motion.motion_files}")
+    print(f"Ref motion files: {env_cfg.ref_motion.motion_files}")
 
-    #env_cfg.ref_motion.motion_files = glob.glob(f"{os.getenv('HOME')}/workspace/lumos_ws/humanoid_demo_retarget/sources/data/motions/lus2_joint21/pkl/Mma_Kick_fps30.pkl")
+    #env_cfg.ref_motion.motion_files = f"{os.getenv('HOME')}/workspace/lumos_ws/st_gym/third_party/motions/nix1_joint21/pkl/dance2_subject4_1930_3770_3_interpolated_1_3800_fps33.pkl"
     logger.info(f"Ref motion path: {env_cfg.ref_motion.motion_files}")
 
-    env_cfg.ref_motion.frame_begin = 100 #None #0 #175
-    env_cfg.ref_motion.frame_end = 4900 #None #None #2650
+    env_cfg.ref_motion.frame_begin = None #0 #175
+    env_cfg.ref_motion.frame_end = None #None #None #2650
     env_cfg.ref_motion.ref_length_s= None #12.1+4
     env_cfg.ref_motion.random_start = False
     specify_init_values = {}
@@ -200,7 +200,7 @@ def run_mujoco(env_cfg: DictConfig, agent_cfg:DictConfig):
                 actions = policy(obs) # update policy with higher frq, but use low ref frq
                 if args_cli.saving_data:
                     env.update_log(actions, obs, extras)
-                if(env.ref_motion.frame_idx==env.ref_motion.clip_frame_num-3):
+                if(env.ref_motion.frame_idx==env.ref_motion.clip_frame_num-4):
                     logger.info(f"✅ Done, frame idx is {env.ref_motion.frame_idx}")
                     if not args_cli.saving_data:
                         env.reset()

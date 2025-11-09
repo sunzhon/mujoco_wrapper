@@ -130,14 +130,22 @@ def run_mujoco(env_cfg: DictConfig, agent_cfg:DictConfig):
         None
     """
     global control_mode, mj_sim_mode, base_velocity
+    if not isinstance(env_cfg.ref_motion.motion_files, str):
+        env_cfg.ref_motion.motion_files = env_cfg.ref_motion.motion_files[0]
+    
+    # echking file exist or not
     if glob.glob(env_cfg.ref_motion.motion_files) == []:
-        env_cfg.ref_motion.motion_files = os.path.join(os.getenv("HOME"),env_cfg.ref_motion.motion_files[env_cfg.ref_motion.motion_files.find("workspace"):])
-    if len(glob.glob(env_cfg.ref_motion.motion_files)) < 1:
+        env_cfg.ref_motion.motion_files = os.path.join(
+            os.getenv("HOME"), 
+            env_cfg.ref_motion.motion_files[env_cfg.ref_motion.motion_files.find("workspace"):]
+        )
+    motion_files = glob.glob(env_cfg.ref_motion.motion_files)
+    if len(motion_files) < 1:
         env_cfg.ref_motion.motion_files = f"{os.getenv('HOME')}/workspace/lumos_ws/st_gym/third_party/motions/lus2_joint21/pkl/*"
         print(f"The ref motion for training do not exist, change to use {env_cfg.ref_motion.motion_files}")
     print(f"Ref motion files: {env_cfg.ref_motion.motion_files}")
-
-    #env_cfg.ref_motion.motion_files = f"{os.getenv('HOME')}/workspace/lumos_ws/st_gym/third_party/motions/nix1_joint21/pkl/dance2_subject4_1930_3770_3_interpolated_1_3800_fps33.pkl"
+    # env_cfg.ref_motion.motion_files = f"{os.getenv('HOME')}/workspace/lumos_ws/st_gym/third_party/motions/nix1_joint21/pkl/dance2_subject4_1930_3770_3_interpolated_1_3800_fps33.pkl"
+    
     logger.info(f"Ref motion path: {env_cfg.ref_motion.motion_files}")
 
     env_cfg.ref_motion.frame_begin = None #0 #175

@@ -315,7 +315,6 @@ class MujocoSimEnv:
         if expressive_goal_fields is not None:
             for name in expressive_goal_fields:
                 if "link" in name:
-                    import pdb;pdb.set_trace()
                     body_id = self.mj_model.body(name).id
                     mujoco.mj_objectVelocity(self.mj_model, self.mj_data, mujoco.mjtObj.mjOBJ_BODY, body_id, vel, 0)
                     body_lin_vel_w.append(torch.tensor(vel[3:], device=self.device, dtype=torch.float32))
@@ -356,6 +355,7 @@ class MujocoSimEnv:
             velocity_commands = self.base_velocity
 
         last_actions = self.last_actions
+        actions = self.last_actions
         p_last_actions = last_actions
 
         #6) choose necessary obs and critic_obs terms
@@ -784,7 +784,6 @@ class InferenceRunner:
             test_obs = np.zeros(1,self.input_shape)
         if test_action is None:
             test_action = np.zeros(1,self.output_shape)
-
         test_obs = test_obs.astype(np.float32)
         test_action = test_action.astype(np.float32)
 

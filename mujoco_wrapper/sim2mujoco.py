@@ -144,12 +144,12 @@ def run_mujoco(env_cfg: DictConfig, agent_cfg:DictConfig):
         env_cfg.ref_motion.motion_files = f"{os.getenv('HOME')}/workspace/lumos_ws/st_gym/third_party/motions/lus2_joint21/pkl/*"
         print(f"The ref motion for training do not exist, change to use {env_cfg.ref_motion.motion_files}")
     print(f"Ref motion files: {env_cfg.ref_motion.motion_files}")
-    # env_cfg.ref_motion.motion_files = f"{os.getenv('HOME')}/workspace/lumos_ws/st_gym/third_party/motions/nix1_joint21/pkl/dance2_subject4_1930_3770_3_interpolated_1_3800_fps33.pkl"
+    #env_cfg.ref_motion.motion_files = f"{os.getenv('HOME')}/workspace/lumos_ws/st_gym/third_party/motions/nix2/pkl/cartwheel5_op_1_128_fps30*"
     
     logger.info(f"Ref motion path: {env_cfg.ref_motion.motion_files}")
 
-    env_cfg.ref_motion.frame_begin = None #0 #175
-    env_cfg.ref_motion.frame_end = None #None #None #2650
+    env_cfg.ref_motion.frame_begin = None#0 #175
+    env_cfg.ref_motion.frame_end = None #None #2650
     env_cfg.ref_motion.ref_length_s= None #12.1+4
     env_cfg.ref_motion.random_start = False
     specify_init_values = {}
@@ -157,7 +157,7 @@ def run_mujoco(env_cfg: DictConfig, agent_cfg:DictConfig):
     specify_init_values["root_rot_y"] = 0
     specify_init_values["root_rot_z"] = 0
     specify_init_values["root_rot_w"] = 1
-    specify_init_values["root_pos_z"] = 0.86
+    specify_init_values["root_pos_z"] = 0.4
     specify_init_values["left_hip_pitch_joint_dof_pos"] = -0.37
     specify_init_values["right_hip_pitch_joint_dof_pos"] = -0.37
     specify_init_values["left_knee_joint_dof_pos"] = 0.74
@@ -168,7 +168,20 @@ def run_mujoco(env_cfg: DictConfig, agent_cfg:DictConfig):
     specify_init_values["right_shoulder_roll_joint_dof_pos"] = -0.25
     specify_init_values["left_elbow_joint_dof_pos"] = 1.2
     specify_init_values["right_elbow_joint_dof_pos"] = 1.2
-    env_cfg.ref_motion.specify_init_values = None #specify_init_values #if env_cfg.ref_motion.specify_init_values is not None else None
+    env_cfg.ref_motion.specify_init_values = specify_init_values #if env_cfg.ref_motion.specify_init_values is not None else None
+
+    specify_final_values = {}
+    specify_final_values["left_hip_pitch_joint_dof_pos"] = -0.1
+    specify_final_values["right_hip_pitch_joint_dof_pos"] = -0.1
+    specify_final_values["left_knee_joint_dof_pos"] = 0.1
+    specify_final_values["right_knee_joint_dof_pos"] = 0.1
+    specify_final_values["left_ankle_pitch_joint_dof_pos"] = -0.1
+    specify_final_values["right_ankle_pitch_joint_dof_pos"] = -0.1
+    specify_final_values["left_shoulder_roll_joint_dof_pos"] = 0.3
+    specify_final_values["right_shoulder_roll_joint_dof_pos"] = -0.3
+    specify_final_values["left_elbow_joint_dof_pos"] = 1.2
+    specify_final_values["right_elbow_joint_dof_pos"] = 1.2
+    env_cfg.ref_motion.specify_final_values = specify_final_values #if env_cfg.ref_motion.specify_init_values is not None else None
     env = MujocoSimEnv(env_cfg, args_cli)
 
     control_mode="STANDUP"
@@ -240,13 +253,10 @@ def run_mujoco(env_cfg: DictConfig, agent_cfg:DictConfig):
 
         # save log
         if args_cli.saving_data:
-            #env.save_log(os.path.dirname(runner.policy_path))
             env.save_log(runner)
         if args_cli.export_rknn:
             # test rknn  and save testing results
             store_rknn_action = runner.test_rknn(env.store_obs, env.store_action)
-            # test rknn AGAIN with data from file and save testing results
-            #store_rknn_action = runner.test_rknn(test_obs_data_path=mj_onnx_obs_path, test_action_data_path=mj_onnx_action_path)
 
 
 

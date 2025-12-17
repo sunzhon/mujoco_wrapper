@@ -491,8 +491,11 @@ class MujocoSimEnv:
         self.store_extras.append(extras)
 
 
-    def save_log(self, saving_folder):
-        logger.info(f"Saving data ... ")
+    def save_log(self, runner):
+        # get saving folder
+        saving_folder = os.path.dirname(runner.policy_path)
+        logger.info(f"Saving data at {saving_folder}...")
+
         # array obs, action, and ref motion
         store_action = torch.cat(self.store_action).cpu().numpy()
         store_target_q = torch.cat(self.store_target_q).cpu().numpy()
@@ -519,6 +522,7 @@ class MujocoSimEnv:
         with open(kpkds_path, "w") as file:
             yaml.dump({"kps":self.kps.squeeze().numpy().tolist(),"kds": self.kds.squeeze().numpy().tolist(), 
                 "scales":self.cfg.num_actions*[self.cfg.actions.joint_pos.scale]}, file, default_flow_style=False)
+
 
         # saving obs, action, and ref motion
         mj_onnx_action_path = os.path.join(eval_result_folder, "store_mj_onnx_action.txt")
@@ -781,20 +785,30 @@ class InferenceRunner:
             test_action = np.loadtxt(test_action_data_path, delimiter=" ")
 
         if test_obs is None:
-            test_obs = np.zeros(1,self.input_shape)
+            test_obs = np.zeros(self.input_shape)
         if test_action is None:
-            test_action = np.zeros(1,self.output_shape)
-
-        test_obs = test_obs.astype(np.float32)
-        test_action = test_action.astype(np.float32)
+            test_action = np.zeros(self.output_shape)
+        
+        if isinstance(test_obs[0], torch.Tensor):
+            test_obs = torch.cat(test_obs).cpu().numpy().astype(np.float32)
+            test_action = torch.cat(test_action).cpu().numpy().astype(np.float32)
+        else:
+            raise TypeError("Expected input to be list of torch.Tensor")
 
         logger.info(f"test action shape: {test_action.shape}")
         logger.info(f"test obs shape: {test_obs.shape}")
 
         # Inference
+        input1 = np.ones(self.input_shape,dtype=np.float32)
+        input2 = np.zeros(self.hidden_state.shape,dtype=np.float32)
+        input3 = np.zeros(self.cell_state.shape,dtype=np.float32)
+        print('--> Running model')
+        outputs = rknn.inference(inputs=[input1,input2,input3])
+
         rknn_actions = []
         for idx in range(min(test_obs.shape[0],test_action.shape[0])):
-            rknn_actions.append(rknn.inference(inputs=[test_obs[idx,:].reshape(1,-1)])[0])
+            outputs = rknn.inference(inputs=[test_obs[idx,:].reshape(1,-1), outputs[1], outputs[2]])
+            rknn_actions.append(outputs[0])
 
         rknn_action = np.array(rknn_actions)[:,0,:]
 
@@ -804,6 +818,48 @@ class InferenceRunner:
 
         mj_rknn_action_path = os.path.join(os.path.dirname(self.rknn_model_path), "store_mj_rknn_action.txt")
         np.savetxt(mj_rknn_action_path, rknn_action, fmt="%.4f")
+
+        # saving lstm hidden states
+        hidden_path = os.path.join(os.path.dirname(self.rknn_model_path), "hidden.txt")
+        # 转换为numpy数组并展平
+        hidden_flat = np.array(outputs[1]).flatten()
+        cell_flat = np.array(outputs[2]).flatten()
+        
+        # 格式化字符串并保存
+        with open(hidden_path, 'w') as f:
+            # 写入hidden_state
+            f.write("h_: ")
+            # 将数组格式化为4位小数的字符串
+            hidden_str = " ".join(f"{x:.4f}" for x in hidden_flat)
+            f.write(hidden_str)
+            f.write("\n\n")
+        
+            # 写入cell_state
+            f.write("c_: ")
+            cell_str = " ".join(f"{x:.4f}" for x in cell_flat)
+            f.write(cell_str)
+        logger.info(f"Successfully export rknn and save hidden states in {hidden_path}")
+
+
+        # saving necessary exported files for realrobot deploying 
+        parent_folder = os.path.dirname(os.path.dirname(self.rknn_model_path))
+        date = os.path.basename(parent_folder)
+        folder_pattern = re.compile(r'^(\d{4})-(\d{2})-(\d{2})_(\d{2})-(\d{2})-(\d{2})$')
+        year, month, day, hour,mm, _=folder_pattern.match(date).groups()
+        folder_name = f"policy_{month}{day}{hour}{mm}"
+        policy_folder = os.path.join(parent_folder,folder_name)
+        os.makedirs(policy_folder, exist_ok=True)
+        ss=os.path.dirname(self.rknn_model_path)
+        import shutil
+        shutil.copy(f"{ss}/hidden.txt", f"{policy_folder}/")
+        shutil.copy(f"{ss}/policy.rknn", f"{policy_folder}/")
+        shutil.copy(f"{ss}/kp_kd.yaml", f"{policy_folder}/")
+        shutil.copy(f"{ss}/store_ref_motion.txt", f"{policy_folder}/")
+        shutil.copy(f"{ss}/store_ref_motion.txt", f"{policy_folder}/")
+
+
+
+
 
         return rknn_action
 

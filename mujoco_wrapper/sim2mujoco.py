@@ -168,7 +168,7 @@ def run_mujoco(env_cfg: DictConfig, agent_cfg:DictConfig):
     specify_init_values["right_shoulder_roll_joint_dof_pos"] = -0.25
     specify_init_values["left_elbow_joint_dof_pos"] = 1.2
     specify_init_values["right_elbow_joint_dof_pos"] = 1.2
-    env_cfg.ref_motion.specify_init_values = specify_init_values #if env_cfg.ref_motion.specify_init_values is not None else None
+    env_cfg.ref_motion.specify_init_values = None #specify_init_values #if env_cfg.ref_motion.specify_init_values is not None else None
 
     specify_final_values = {}
     specify_final_values["left_hip_pitch_joint_dof_pos"] = -0.1
@@ -181,7 +181,7 @@ def run_mujoco(env_cfg: DictConfig, agent_cfg:DictConfig):
     specify_final_values["right_shoulder_roll_joint_dof_pos"] = -0.3
     specify_final_values["left_elbow_joint_dof_pos"] = 1.2
     specify_final_values["right_elbow_joint_dof_pos"] = 1.2
-    env_cfg.ref_motion.specify_final_values = specify_final_values #if env_cfg.ref_motion.specify_init_values is not None else None
+    env_cfg.ref_motion.specify_final_values = None #specify_final_values #if env_cfg.ref_motion.specify_init_values is not None else None
     env = MujocoSimEnv(env_cfg, args_cli)
 
     control_mode="STANDUP"
@@ -257,8 +257,6 @@ def run_mujoco(env_cfg: DictConfig, agent_cfg:DictConfig):
         if args_cli.export_rknn:
             # test rknn  and save testing results
             store_rknn_action = runner.test_rknn(env.store_obs, env.store_action)
-
-
 
 
 

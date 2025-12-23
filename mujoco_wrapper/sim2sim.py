@@ -855,7 +855,7 @@ class InferenceRunner:
         shutil.copy(f"{ss}/policy.rknn", f"{policy_folder}/")
         shutil.copy(f"{ss}/kp_kd.yaml", f"{policy_folder}/")
         shutil.copy(f"{ss}/store_ref_motion.txt", f"{policy_folder}/")
-        shutil.copy(f"{ss}/store_ref_motion.txt", f"{policy_folder}/")
+        shutil.copy(f"{ss}/store_ref_init_dof_pos.txt", f"{policy_folder}/")
 
 
 

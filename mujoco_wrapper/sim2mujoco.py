@@ -48,7 +48,7 @@ parser.add_argument_group("st_rl", description="Arguments for RSL-RL agent.")
     # -- experiment arguments
 parser.add_argument(
         "--experiment_name", type=str, default=None, help="Name of the experiment folder where logs will be stored.")
-parser.add_argument("--logs", type=str, default=f"{os.getenv('HOME')}/workspace/lumos_ws/st_gym/logs/st_rl/", help="Name of the log folder to resume from.")
+parser.add_argument("--logs", type=str, default=f"{os.getenv('HOME')}/workspace/lumos_ws_new/st_gym/logs/st_rl/", help="Name of the log folder to resume from.")
 parser.add_argument("--load_run", type=str, default=None, help="Name of the run folder to resume from.")
 parser.add_argument("--policy_path", type=str, default=None, help="The path of onnx model path of trained policy")
 parser.add_argument("--model_path", type=str, default=None, help="Robot XML model path")
@@ -144,7 +144,7 @@ def run_mujoco(env_cfg: DictConfig, agent_cfg:DictConfig):
         env_cfg.ref_motion.motion_files = f"{os.getenv('HOME')}/workspace/lumos_ws/st_gym/third_party/motions/lus2_joint21/pkl/*"
         print(f"The ref motion for training do not exist, change to use {env_cfg.ref_motion.motion_files}")
     print(f"Ref motion files: {env_cfg.ref_motion.motion_files}")
-    # env_cfg.ref_motion.motion_files = f"{os.getenv('HOME')}/workspace/lumos_ws/st_gym/third_party/motions/nix1_joint21/pkl/dance2_subject4_1930_3770_3_interpolated_1_3800_fps33.pkl"
+    env_cfg.ref_motion.motion_files = f"{os.getenv('HOME')}/workspace/lumos_ws_new/st_gym/third_party/motions/nix1_joint21/pkl/run2_subject1_0_2600_fps30.pkl"
     
     logger.info(f"Ref motion path: {env_cfg.ref_motion.motion_files}")
 

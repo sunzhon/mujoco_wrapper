@@ -222,6 +222,51 @@ class MujocoSimEnv:
         # loading ref motion
         self.load_refmotion()
 
+        # Optional: load obs override file. This file should contain one line per frame
+        # with numeric values. We will extract numeric tokens (including scientific notation)
+        # and use the first 45 numbers from each line to overwrite the last 45 dims of obs.
+        self.obs_override_data = None
+        self.obs_override_idx = 0
+        # priority: args_cli.obs_override_file -> cfg.sim.obs_override_file -> cfg.obs_override_file
+        obs_file_path = "/home/foolyc/Downloads/motions_txt/xsens/fast_wlak_teletest.txt"
+        # try:
+        #     if hasattr(args_cli, 'obs_override_file') and args_cli.obs_override_file is not None:
+        #         obs_file_path = args_cli.obs_override_file
+        # except Exception:
+        #     obs_file_path = None
+        if obs_file_path is None:
+            obs_file_path = getattr(self.cfg, 'obs_override_file', None)
+        if obs_file_path is None and hasattr(self.cfg, 'sim'):
+            obs_file_path = getattr(self.cfg.sim, 'obs_override_file', None)
+
+        if obs_file_path is not None:
+            # expand ~ and env vars
+            obs_file_path = os.path.expanduser(os.path.expandvars(obs_file_path))
+            if os.path.isfile(obs_file_path):
+                logger.info(f"Loading obs override file: {obs_file_path}")
+                data_lines = []
+                import re as _re
+                num_re = _re.compile(r"[-+]?\d*\.?\d+(?:[eE][-+]?\d+)?")
+                with open(obs_file_path, 'r') as f:
+                    for line in f:
+                        # extract all numeric tokens in the line
+                        tokens = num_re.findall(line)
+                        if len(tokens) >= 45:
+                            row = [float(x) for x in tokens[:45]]
+                            # row = [0.0] * 3 + [float(x) for x in tokens[3:45]]
+                            # row = [float(x) for x in tokens[:24]] + [0.0]*21
+                            data_lines.append(row)
+                        else:
+                            # if less than 45 numbers found, skip line
+                            logger.warning(f"Obs override line has <45 numeric entries, skipping: {line.strip()}")
+                if len(data_lines) > 0:
+                    self.obs_override_data = np.array(data_lines, dtype=np.float32)
+                    logger.info(f"Loaded obs override with {self.obs_override_data.shape[0]} rows (45 cols each)")
+                else:
+                    logger.warning("No valid rows found in obs override file; ignoring.")
+            else:
+                logger.warning(f"Obs override file not found: {obs_file_path}")
+
 
     def load_refmotion(self):
         """
@@ -348,10 +393,65 @@ class MujocoSimEnv:
                 style_goal_commands = self.ref_motion.style_goal
                 if "style_goal_commands" not in ref_fields:
                     ref_fields["style_goal_commands"] = self.cfg.ref_motion.style_goal_fields
-            if hasattr(self.ref_motion, "expressive_goal"):
-                expressive_goal_commands = self.ref_motion.expressive_goal
-                if "expressive_goal_commands" not in ref_fields:
-                    ref_fields["expressive_goal_commands"] = self.cfg.ref_motion.expressive_goal_fields
+                if hasattr(self.ref_motion, "expressive_goal"):
+                    # expressive_goal from ref_motion is the next-frame goal
+                    _expressive_goal_next = self.ref_motion.expressive_goal
+
+                    # Determine which goal-related terms are requested by cfg.
+                    # Note: cfg.observations.policy is an OrderedDict-like mapping.
+                    _policy_terms = getattr(getattr(self.cfg, "observations", None), "policy", {})
+                    _need_goal = "expressive_goal_commands" in _policy_terms
+                    _need_future = "expressive_goal_commands_future" in _policy_terms
+                    _need_seq = "expressive_goal_enc_seq" in _policy_terms
+
+                    # If critic also requests these, we should compute them as well.
+                    _critic_terms = getattr(getattr(self.cfg, "observations", None), "critic", {})
+                    _need_goal = _need_goal or ("expressive_goal_commands" in _critic_terms)
+                    _need_future = _need_future or ("expressive_goal_commands_future" in _critic_terms)
+                    _need_seq = _need_seq or ("expressive_goal_enc_seq" in _critic_terms)
+
+                    # If nothing is requested, skip all computations.
+                    if _need_goal or _need_future or _need_seq:
+                        expressive_goal_commands = _expressive_goal_next
+                        if "expressive_goal_commands" not in ref_fields:
+                            ref_fields["expressive_goal_commands"] = self.cfg.ref_motion.expressive_goal_fields
+
+                        # Infer horizon from cfg' expressive_goal_enc_seq term (if present).
+                        future_horizon = 1
+                        try:
+                            policy_cfg = getattr(getattr(self.cfg, "observations", None), "policy", None)
+                            term = getattr(policy_cfg, "expressive_goal_enc_seq", None)
+                            if term is not None and hasattr(term, "params") and isinstance(term.params, dict):
+                                future_horizon = int(term.params.get("future_horizon", 1))
+                        except Exception:
+                            future_horizon = 1
+
+                        # Build future goals (needed by either *_future or *_enc_seq).
+                        if _need_future or _need_seq:
+                            # Try to compute future_horizon steps using preloaded_s.
+                            future_cmds = []
+                            try:
+                                pre_s = self.ref_motion.preloaded_s
+                                total_frames = pre_s.shape[0]
+                                next_idx = (
+                                    int(self.ref_motion.next_frame_idx)
+                                    if not isinstance(self.ref_motion.next_frame_idx, torch.Tensor)
+                                    else int(self.ref_motion.next_frame_idx.item())
+                                )
+                                for h in range(1, future_horizon + 1):
+                                    idx = (next_idx + h) % total_frames
+                                    future_cmds.append(pre_s[idx][:, self.ref_motion.expressive_goal_index])
+                            except Exception:
+                                # Fallback: repeat next-frame goal
+                                future_cmds = [expressive_goal_commands.clone() for _ in range(future_horizon)]
+
+                            expressive_goal_commands_future = torch.cat(future_cmds, dim=-1)  # (B, 42*H)
+
+                        # Build seq if requested.
+                        if _need_seq:
+                            expressive_goal_enc_seq = torch.cat(
+                                [expressive_goal_commands, expressive_goal_commands_future], dim=-1
+                            )
         else:
             velocity_commands = self.base_velocity
 
@@ -363,6 +463,11 @@ class MujocoSimEnv:
         for key, value in self.cfg.observations.policy.items():
             if hasattr(value, "func"):
                 if value.func is not None:
+                    if key not in locals():
+                        raise KeyError(
+                            f"sim2sim cannot build obs term '{key}' because it was not computed in get_obs(). "
+                            "This usually means sim2sim is missing an implementation for that observation term."
+                        )
                     obs_list.append(locals()[key])
         obs = torch.cat(obs_list, dim=1)
 
@@ -392,6 +497,24 @@ class MujocoSimEnv:
             ref_motion = None
 
         self.obs_buf.append(obs)
+        # If obs_override_data is provided, overwrite the last 45 dims of obs
+        # self.obs_override_data = None
+        if self.obs_override_data is not None:
+            try:
+                n_rows = self.obs_override_data.shape[0]
+                # select row by current override index (wrap around)
+                row = self.obs_override_data[self.obs_override_idx % n_rows]
+                # convert to tensor and device
+                override_tensor = torch.from_numpy(row.astype(np.float32)).to(device=self.device)
+                # ensure obs has enough dims
+                if obs.shape[1] >= 45:
+                    # obs is shape (num_env, obs_dim); overwrite last 45 dims
+                    obs[:, -45:] = override_tensor.reshape(1, -1)
+                else:
+                    logger.warning(f"Obs dim {obs.shape[1]} is smaller than 45, cannot override")
+                self.obs_override_idx += 1
+            except Exception as e:
+                logger.exception(f"Failed to apply obs override: {e}")
         extras = {"ref_motion": ref_motion,"critic_obs": critic_obs, "joint_pos": np.squeeze(joint_pos), "joint_vel": np.squeeze(joint_vel), "joint_tor": joint_tor, "grf": grf}
         
         return self.obs_buf[0], extras

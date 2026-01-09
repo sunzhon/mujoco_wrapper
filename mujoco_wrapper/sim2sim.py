@@ -228,7 +228,7 @@ class MujocoSimEnv:
         self.obs_override_data = None
         self.obs_override_idx = 0
         # priority: args_cli.obs_override_file -> cfg.sim.obs_override_file -> cfg.obs_override_file
-        obs_file_path = "/home/foolyc/Downloads/motions_txt/xsens/fast_wlak_teletest.txt"
+        obs_file_path = "/home/foolyc/Downloads/motions_txt/xsens/mid_long_run_teletest.txt"
         # try:
         #     if hasattr(args_cli, 'obs_override_file') and args_cli.obs_override_file is not None:
         #         obs_file_path = args_cli.obs_override_file
@@ -501,12 +501,12 @@ class MujocoSimEnv:
         # Mode: 45 -> only current row (45)
         #       87 -> current row (45) + next row's last 42
         #       129 -> current row (45) + next row's last 42 + next next row's last 42
-        self.obs_override_data = None
+        # self.obs_override_data = None
         if self.obs_override_data is not None:
             try:
                 n_rows = self.obs_override_data.shape[0]
                 idx = self.obs_override_idx % n_rows
-                override_mode = 45+42  # 45 + N*42, N=0,1,2,3...
+                override_mode = 45  # 45 + N*42, N=0,1,2,3...
                 row0 = self.obs_override_data[idx]
                 override_list = [torch.from_numpy(row0.astype(np.float32)).to(device=self.device)]
                 n_future = (override_mode - 45) // 42

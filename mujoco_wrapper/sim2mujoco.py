@@ -144,7 +144,7 @@ def run_mujoco(env_cfg: DictConfig, agent_cfg:DictConfig):
         env_cfg.ref_motion.motion_files = f"{os.getenv('HOME')}/workspace/lumos_ws/st_gym/third_party/motions/lus2_joint21/pkl/*"
         print(f"The ref motion for training do not exist, change to use {env_cfg.ref_motion.motion_files}")
     print(f"Ref motion files: {env_cfg.ref_motion.motion_files}")
-    env_cfg.ref_motion.motion_files = f"{os.getenv('HOME')}/workspace/lumos_ws_new/st_gym/third_party/motions/nix1_joint21/pkl/run2_subject1_0_2600_fps30.pkl"
+    env_cfg.ref_motion.motion_files = f"{os.getenv('HOME')}/workspace/lumos_ws_new/st_gym/third_party/motions/nix1_joint21/pkl/little_apple_fps30.pkl"
     
     logger.info(f"Ref motion path: {env_cfg.ref_motion.motion_files}")
 

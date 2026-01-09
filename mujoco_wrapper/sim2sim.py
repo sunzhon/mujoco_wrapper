@@ -497,21 +497,27 @@ class MujocoSimEnv:
             ref_motion = None
 
         self.obs_buf.append(obs)
-        # If obs_override_data is provided, overwrite the last 45 dims of obs
-        # self.obs_override_data = None
+        # If obs_override_data is provided, overwrite the last N dims of obs
+        # Mode: 45 -> only current row (45)
+        #       87 -> current row (45) + next row's last 42
+        #       129 -> current row (45) + next row's last 42 + next next row's last 42
+        self.obs_override_data = None
         if self.obs_override_data is not None:
             try:
                 n_rows = self.obs_override_data.shape[0]
-                # select row by current override index (wrap around)
-                row = self.obs_override_data[self.obs_override_idx % n_rows]
-                # convert to tensor and device
-                override_tensor = torch.from_numpy(row.astype(np.float32)).to(device=self.device)
-                # ensure obs has enough dims
-                if obs.shape[1] >= 45:
-                    # obs is shape (num_env, obs_dim); overwrite last 45 dims
-                    obs[:, -45:] = override_tensor.reshape(1, -1)
+                idx = self.obs_override_idx % n_rows
+                override_mode = 45+42  # 45 + N*42, N=0,1,2,3...
+                row0 = self.obs_override_data[idx]
+                override_list = [torch.from_numpy(row0.astype(np.float32)).to(device=self.device)]
+                n_future = (override_mode - 45) // 42
+                for i in range(1, n_future + 1):
+                    future_row = self.obs_override_data[(idx + i) % n_rows]
+                    override_list.append(torch.from_numpy(future_row[-42:].astype(np.float32)).to(device=self.device))
+                override_tensor = torch.cat(override_list, dim=0)
+                if obs.shape[1] >= override_mode:
+                    obs[:, -override_mode:] = override_tensor.reshape(1, -1)
                 else:
-                    logger.warning(f"Obs dim {obs.shape[1]} is smaller than 45, cannot override")
+                    logger.warning(f"Obs dim {obs.shape[1]} is smaller than {override_mode}, cannot override")
                 self.obs_override_idx += 1
             except Exception as e:
                 logger.exception(f"Failed to apply obs override: {e}")

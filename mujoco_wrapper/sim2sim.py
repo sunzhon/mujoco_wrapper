@@ -393,65 +393,11 @@ class MujocoSimEnv:
                 style_goal_commands = self.ref_motion.style_goal
                 if "style_goal_commands" not in ref_fields:
                     ref_fields["style_goal_commands"] = self.cfg.ref_motion.style_goal_fields
-                if hasattr(self.ref_motion, "expressive_goal"):
-                    # expressive_goal from ref_motion is the next-frame goal
-                    _expressive_goal_next = self.ref_motion.expressive_goal
-
-                    # Determine which goal-related terms are requested by cfg.
-                    # Note: cfg.observations.policy is an OrderedDict-like mapping.
-                    _policy_terms = getattr(getattr(self.cfg, "observations", None), "policy", {})
-                    _need_goal = "expressive_goal_commands" in _policy_terms
-                    _need_future = "expressive_goal_commands_future" in _policy_terms
-                    _need_seq = "expressive_goal_enc_seq" in _policy_terms
-
-                    # If critic also requests these, we should compute them as well.
-                    _critic_terms = getattr(getattr(self.cfg, "observations", None), "critic", {})
-                    _need_goal = _need_goal or ("expressive_goal_commands" in _critic_terms)
-                    _need_future = _need_future or ("expressive_goal_commands_future" in _critic_terms)
-                    _need_seq = _need_seq or ("expressive_goal_enc_seq" in _critic_terms)
-
-                    # If nothing is requested, skip all computations.
-                    if _need_goal or _need_future or _need_seq:
-                        expressive_goal_commands = _expressive_goal_next
-                        if "expressive_goal_commands" not in ref_fields:
-                            ref_fields["expressive_goal_commands"] = self.cfg.ref_motion.expressive_goal_fields
-
-                        # Infer horizon from cfg' expressive_goal_enc_seq term (if present).
-                        future_horizon = 1
-                        try:
-                            policy_cfg = getattr(getattr(self.cfg, "observations", None), "policy", None)
-                            term = getattr(policy_cfg, "expressive_goal_enc_seq", None)
-                            if term is not None and hasattr(term, "params") and isinstance(term.params, dict):
-                                future_horizon = int(term.params.get("future_horizon", 1))
-                        except Exception:
-                            future_horizon = 1
-
-                        # Build future goals (needed by either *_future or *_enc_seq).
-                        if _need_future or _need_seq:
-                            # Try to compute future_horizon steps using preloaded_s.
-                            future_cmds = []
-                            try:
-                                pre_s = self.ref_motion.preloaded_s
-                                total_frames = pre_s.shape[0]
-                                next_idx = (
-                                    int(self.ref_motion.next_frame_idx)
-                                    if not isinstance(self.ref_motion.next_frame_idx, torch.Tensor)
-                                    else int(self.ref_motion.next_frame_idx.item())
-                                )
-                                for h in range(1, future_horizon + 1):
-                                    idx = (next_idx + h) % total_frames
-                                    future_cmds.append(pre_s[idx][:, self.ref_motion.expressive_goal_index])
-                            except Exception:
-                                # Fallback: repeat next-frame goal
-                                future_cmds = [expressive_goal_commands.clone() for _ in range(future_horizon)]
-
-                            expressive_goal_commands_future = torch.cat(future_cmds, dim=-1)  # (B, 42*H)
-
-                        # Build seq if requested.
-                        if _need_seq:
-                            expressive_goal_enc_seq = torch.cat(
-                                [expressive_goal_commands, expressive_goal_commands_future], dim=-1
-                            )
+                
+            if hasattr(self.ref_motion, "expressive_goal"):
+                expressive_goal_commands = self.ref_motion.expressive_goal
+                if "expressive_goal_commands" not in ref_fields:
+                    ref_fields["expressive_goal_commands"] = self.cfg.ref_motion.expressive_goal_fields                
         else:
             velocity_commands = self.base_velocity
 

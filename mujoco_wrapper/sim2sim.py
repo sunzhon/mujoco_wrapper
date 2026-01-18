@@ -324,14 +324,54 @@ class MujocoSimEnv:
         #1) get sensor data of base/root link
         base_pos_w =  torch.tensor(data.sensor('position').data.astype(np.float32)).reshape(self.num_env,-1)
         base_quat_w =  torch.tensor(data.sensor('orientation').data.astype(np.float32)).reshape(self.num_env,-1)
-        base_lin_vel_b = torch.tensor(data.sensor('linear-velocity').data.astype(np.float32).reshape(self.num_env,-1), dtype=torch.float32, device=self.device)
-        base_ang_vel_b = torch.tensor(data.sensor('angular-velocity').data.astype(np.float32).reshape(self.num_env,-1),dtype=torch.float32,device=self.device)
+        base_lin_vel = torch.tensor(data.sensor('linear-velocity').data.astype(np.float32).reshape(self.num_env,-1), dtype=torch.float32, device=self.device)
+        base_ang_vel = torch.tensor(data.sensor('angular-velocity').data.astype(np.float32).reshape(self.num_env,-1),dtype=torch.float32,device=self.device)
         
         #2) calculate gvec
         quat = data.sensor('orientation').data[[1, 2, 3, 0]].astype(np.float32)
         r = R.from_quat(quat)
         v = r.apply(data.qvel[:3], inverse=True).astype(np.float32)  # In the base frame
         projected_gravity = torch.tensor(r.apply(np.array([0., 0., -1.]), inverse=True).astype(np.float32).reshape(self.num_env,-1),dtype=torch.float32,device=self.device)
+        
+        #2.1) compute motion_anchor_pos_b and motion_anchor_ori_b if ref_motion exists
+        # These are only needed when using mimic mode with motion command
+        if hasattr(self, "ref_motion") and hasattr(self.ref_motion, "expressive_goal"):
+            # Get reference motion data (first 7 fields: x,y,z, quat_x,quat_y,quat_z,quat_w)
+            ref_motion_data = self.ref_motion.expressive_goal  # shape: (num_env, D)
+            
+            # Extract reference root position (first 3 fields of motion data)
+            # motion_fields order: root_pos_x, root_pos_y, root_pos_z, root_rot_x, root_rot_y, root_rot_z, root_rot_w
+            # In expressive_goal tensor: [expressive_goal_fields(42) | motion_fields(84)]
+            ref_root_pos_w = ref_motion_data[:, 42:45]  # offset=42 for motion command start
+            
+            # Compute delta position in world frame
+            delta_w = ref_root_pos_w - base_pos_w
+            
+            # Transform delta to base frame using inverse quaternion rotation
+            # base_quat_w is in wxyz format from sensor
+            from isaaclab.utils.math import quat_apply_inverse, convert_quat, quat_mul, quat_conjugate, normalize
+            base_quat_wxyz = base_quat_w  # sensor already gives wxyz
+            motion_anchor_pos_b = quat_apply_inverse(base_quat_wxyz, delta_w)  # (num_env, 3)
+            
+            # Extract reference root quaternion (fields 3-6 of motion: quat_x, quat_y, quat_z, quat_w)
+            ref_root_quat_xyzw = ref_motion_data[:, 45:49]  # offset=42 + 3 (xyz position)
+            ref_root_quat_wxyz = convert_quat(ref_root_quat_xyzw, to="wxyz")
+            ref_root_quat_wxyz = normalize(ref_root_quat_wxyz)
+            
+            # Compute relative rotation: q_rel = q_ref * conj(q_robot)
+            robot_quat_wxyz = normalize(base_quat_wxyz)
+            q_rel = quat_mul(ref_root_quat_wxyz, quat_conjugate(robot_quat_wxyz))
+            q_rel = normalize(q_rel)
+            
+            # Convert to 6D rotation representation
+            from isaaclab.utils.math import matrix_from_quat
+            rot_m = matrix_from_quat(q_rel)  # (num_env, 3, 3)
+            motion_anchor_ori_b = rot_m[..., :, 0:2].reshape(-1, 6)  # (num_env, 6)
+        else:
+            # If no ref_motion, create zero tensors as placeholder
+            # This ensures the observation terms exist in locals() for the obs builder
+            motion_anchor_pos_b = torch.zeros(self.num_env, 3, dtype=torch.float32, device=self.device)
+            motion_anchor_ori_b = torch.zeros(self.num_env, 6, dtype=torch.float32, device=self.device)
 
         #3) get joint pos and vel
         q = data.qpos.astype(np.float32)[7:]
@@ -357,30 +397,30 @@ class MujocoSimEnv:
         body_pos_w=[]
         expressive_goal_fields = getattr(self.cfg.ref_motion,"expressive_goal_fields", None)
         vel = np.zeros(6)
-        if expressive_goal_fields is not None:
-            for name in expressive_goal_fields:
-                if "link" in name:
-                    import pdb;pdb.set_trace()
-                    body_id = self.mj_model.body(name).id
-                    mujoco.mj_objectVelocity(self.mj_model, self.mj_data, mujoco.mjtObj.mjOBJ_BODY, body_id, vel, 0)
-                    body_lin_vel_w.append(torch.tensor(vel[3:], device=self.device, dtype=torch.float32))
-                    body_pos_w.append(torch.tensor(self.mj_data.xpos[body_id], device=self.device, dtype=torch.float32))  # (3,)
+        # if expressive_goal_fields is not None:
+        #     for name in expressive_goal_fields:
+        #         if "link" in name:
+        #             import pdb;pdb.set_trace()
+        #             body_id = self.mj_model.body(name).id
+        #             mujoco.mj_objectVelocity(self.mj_model, self.mj_data, mujoco.mjtObj.mjOBJ_BODY, body_id, vel, 0)
+        #             body_lin_vel_w.append(torch.tensor(vel[3:], device=self.device, dtype=torch.float32))
+        #             body_pos_w.append(torch.tensor(self.mj_data.xpos[body_id], device=self.device, dtype=torch.float32))  # (3,)
                     
-                    # calculate body lin vel in world frame
-                    body_lin_vel_w = torch.stack(body_lin_vel_w)
-                    body_pos_w = torch.stack(body_pos_w)
+        #             # calculate body lin vel in world frame
+        #             body_lin_vel_w = torch.stack(body_lin_vel_w)
+        #             body_pos_w = torch.stack(body_pos_w)
 
-                    # calculate pos and vel in root frame
-                    from isaaclab.utils.math import quat_apply_inverse, euler_xyz_from_quat
-                    body_pos_b = body_pos_w - base_pos_w         # (envs, bodies, 3)
+        #             # calculate pos and vel in root frame
+        #             from isaaclab.utils.math import quat_apply_inverse, euler_xyz_from_quat
+        #             body_pos_b = body_pos_w - base_pos_w         # (envs, bodies, 3)
 
-                    body_pos_b = quat_apply_inverse(base_quat_w.expand(body_pos_b.shape[0], -1), body_pos_b)
-                    body_lin_vel_b = quat_apply_inverse(base_quat_w.expand(body_lin_vel_w.shape[0],-1), body_lin_vel_w)
+        #             body_pos_b = quat_apply_inverse(base_quat_w.expand(body_pos_b.shape[0], -1), body_pos_b)
+        #             body_lin_vel_b = quat_apply_inverse(base_quat_w.expand(body_lin_vel_w.shape[0],-1), body_lin_vel_w)
 
-                    body_pos_w = body_pos_w.reshape(self.num_env,-1)
-                    body_lin_vel_w = body_lin_vel_w.reshape(self.num_env,-1)  # shape: (num_links, 3)
-                    body_pos_b = body_pos_b.reshape(self.num_env, -1)
-                    body_lin_vel_b = body_lin_vel_b.reshape(self.num_env, -1)
+        #             body_pos_w = body_pos_w.reshape(self.num_env,-1)
+        #             body_lin_vel_w = body_lin_vel_w.reshape(self.num_env,-1)  # shape: (num_links, 3)
+        #             body_pos_b = body_pos_b.reshape(self.num_env, -1)
+        #             body_lin_vel_b = body_lin_vel_b.reshape(self.num_env, -1)
 
         #5) goal status
         ref_fields={}
@@ -395,9 +435,17 @@ class MujocoSimEnv:
                     ref_fields["style_goal_commands"] = self.cfg.ref_motion.style_goal_fields
                 
             if hasattr(self.ref_motion, "expressive_goal"):
-                expressive_goal_commands = self.ref_motion.expressive_goal
+                # expressive_goal contains [expressive_goal_fields(42) | motion_fields(84)]
+                # For policy observation, we only need the first 42 dims (joint pos/vel commands)
+                # The motion_fields (84 dims) are used separately for motion_anchor observations
+                full_expressive_goal = self.ref_motion.expressive_goal
+                
+                # Only take the first 42 dimensions for expressive_goal_commands
+                expressive_goal_commands = full_expressive_goal[:, :42]
+                
                 if "expressive_goal_commands" not in ref_fields:
-                    ref_fields["expressive_goal_commands"] = self.cfg.ref_motion.expressive_goal_fields                
+                    # Only include the first 42 fields (exclude motion_fields)
+                    ref_fields["expressive_goal_commands"] = self.cfg.ref_motion.expressive_goal_fields[:42]                
         else:
             velocity_commands = self.base_velocity
 
@@ -444,7 +492,7 @@ class MujocoSimEnv:
 
         self.obs_buf.append(obs)
         # If obs_override_data is provided, overwrite the last 45 dims of obs
-        # self.obs_override_data = None
+        self.obs_override_data = None
         if self.obs_override_data is not None:
             try:
                 n_rows = self.obs_override_data.shape[0]
@@ -462,7 +510,6 @@ class MujocoSimEnv:
             except Exception as e:
                 logger.exception(f"Failed to apply obs override: {e}")
         extras = {"ref_motion": ref_motion,"critic_obs": critic_obs, "joint_pos": np.squeeze(joint_pos), "joint_vel": np.squeeze(joint_vel), "joint_tor": joint_tor, "grf": grf}
-        
         return self.obs_buf[0], extras
     
     

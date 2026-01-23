@@ -179,37 +179,15 @@ class MujocoSimEnv:
         if hasattr(self.cfg.actions.joint_pos, 'scale') and self.cfg.actions.joint_pos.scale is not None:
             scale_cfg = self.cfg.actions.joint_pos.scale
             # support dict: {"regex": value} (existing behavior)
-            if isinstance(scale_cfg, dict):
+            if isinstance(scale_cfg, (dict, DictConfig)):
                 for key, value in scale_cfg.items():
-                    try:
-                        pattern = re.compile(key)
-                        match_indices = [i for i, name in enumerate(self.mujoco_joint_names) if pattern.match(name)]
-                        if len(match_indices) > 0:
-                            self.joint_pos_scale[match_indices] = float(value)
-                    except re.error:
-                        # invalid regex, skip
-                        logger.warning(f"Invalid scale regex '{key}' in cfg.actions.joint_pos.scale, skipping")
+                    pattern = re.compile(key)
+                    match_indices = [i for i, name in enumerate(self.mujoco_joint_names) if pattern.match(name)]
+                    if len(match_indices) > 0:
+                        self.joint_pos_scale[match_indices] = float(value)
             else:
-                # support scalar: scale: 0.25 (apply to all joints)
-                try:
-                    # allow numeric strings too
-                    scalar = float(scale_cfg)
-                    self.joint_pos_scale[:] = scalar
-                except Exception:
-                    # support list/sequence of per-dof scales
-                    try:
-                        seq = list(scale_cfg)
-                        if len(seq) == self.cfg.num_actions:
-                            self.joint_pos_scale[:] = torch.tensor(seq, dtype=self.joint_pos_scale.dtype)
-                        elif len(seq) == self.joint_num:
-                            # map full mujoco joint list to policy dof order
-                            vals = [seq[self.mujoco_joint_names.index(name)] for name in self.policy_joint_names]
-                            self.joint_pos_scale[:] = torch.tensor(vals, dtype=self.joint_pos_scale.dtype)
-                        else:
-                            logger.warning("Unsupported scale list length in cfg.actions.joint_pos.scale; expected num_actions or mujoco joint count")
-                    except Exception:
-                        logger.warning("Unsupported type for cfg.actions.joint_pos.scale; expected dict, scalar, or list/sequence")
-                        logger.warning("Unsupported type for cfg.actions.joint_pos.scale; expected dict, scalar, or list/sequence")
+                scalar = float(scale_cfg)
+                self.joint_pos_scale[:] = scalar
         
         #5) get joint stiffness, damping, and effort limits
         actuators_cfg = env_cfg.scene.robot.actuators
@@ -575,6 +553,7 @@ class MujocoSimEnv:
 
         # update
         for _ in range(self.cfg.decimation):
+            # target_q = mujoco_actions * self.cfg.actions.joint_pos.scale  + self.default_dof_pos
             target_q = mujoco_actions * self.joint_pos_scale  + self.default_dof_pos
             tau = self.pd_control(target_q)  # Calc torques
             self.mj_data.ctrl = tau #*0.0 +100
@@ -683,7 +662,7 @@ class MujocoSimEnv:
             if scales_list is None:
                 # try to expand cfg-provided scale mapping (could be dict of regex->value, a scalar, or list)
                 cfg_scale = getattr(self.cfg.actions.joint_pos, 'scale', None)
-                if isinstance(cfg_scale, dict):
+                if isinstance(cfg_scale, (dict, DictConfig)):
                     resolved = [1.0] * self.cfg.num_actions
                     for key, value in cfg_scale.items():
                         try:
@@ -697,15 +676,18 @@ class MujocoSimEnv:
                     scales_list = resolved
                 else:
                     # scalar or list-like fallback
-                    try:
-                        # if it's a single numeric value
-                        scales_list = [float(cfg_scale)] * self.cfg.num_actions
-                    except Exception:
+                    if cfg_scale is not None:
                         try:
-                            # if it's already a list/sequence
-                            scales_list = list(cfg_scale)
+                            # if it's a single numeric value
+                            scales_list = [float(cfg_scale)] * self.cfg.num_actions
                         except Exception:
-                            scales_list = [1.0] * self.cfg.num_actions
+                            try:
+                                # if it's already a list/sequence
+                                scales_list = list(cfg_scale)
+                            except Exception:
+                                scales_list = [1.0] * self.cfg.num_actions
+                    else:
+                        scales_list = [1.0] * self.cfg.num_actions
 
             yaml.dump({"kps":self.kps.squeeze().numpy().tolist(),"kds": self.kds.squeeze().numpy().tolist(), 
                 "scales": scales_list}, file, default_flow_style=False)

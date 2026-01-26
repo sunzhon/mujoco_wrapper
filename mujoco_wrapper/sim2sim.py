@@ -459,7 +459,7 @@ class MujocoSimEnv:
                 
                 if "expressive_goal_commands" not in ref_fields:
                     # Only include the first 42 fields (exclude motion_fields)
-                    ref_fields["expressive_goal_commands"] = self.cfg.ref_motion.expressive_goal_fields[:42]                
+                    ref_fields["expressive_goal_commands"] = self.cfg.ref_motion.expressive_goal_fields[:42+7] # 42
         else:
             velocity_commands = self.base_velocity
 
@@ -523,6 +523,8 @@ class MujocoSimEnv:
                 self.obs_override_idx += 1
             except Exception as e:
                 logger.exception(f"Failed to apply obs override: {e}")
+        if ref_motion is not None and "ref_root_pos_w" in locals():
+            ref_motion = torch.cat([ref_motion, ref_root_pos_w,ref_root_quat_wxyz], dim=1)
         extras = {"ref_motion": ref_motion,"critic_obs": critic_obs, "joint_pos": np.squeeze(joint_pos), "joint_vel": np.squeeze(joint_vel), "joint_tor": joint_tor, "grf": grf}
         return self.obs_buf[0], extras
     

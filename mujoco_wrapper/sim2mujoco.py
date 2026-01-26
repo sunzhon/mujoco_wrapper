@@ -66,6 +66,7 @@ sys.argv = [sys.argv[0]] + hydra_args
 print(f"Hydr args: {hydra_args}")
 print(f"logs folder: {args_cli.logs}")
 
+# 增加绿色轨迹参考
 def add_visual_capsule(scene, from_pos, to_pos, radius, color_rgba):
     # Ensure proper dtype and shape
     from_pos = np.asarray(from_pos, dtype=np.float64).reshape(3)
@@ -86,7 +87,7 @@ def add_visual_capsule(scene, from_pos, to_pos, radius, color_rgba):
         to_pos
     )
 
-
+# 键盘回调
 def key_call_back( keycode):
     global control_mode, mj_sim_mode, base_velocity
     if chr(keycode) == "R":
@@ -144,7 +145,7 @@ def run_mujoco(env_cfg: DictConfig, agent_cfg:DictConfig):
         env_cfg.ref_motion.motion_files = f"{os.getenv('HOME')}/workspace/lumos_ws/st_gym/third_party/motions/lus2_joint21/pkl/*"
         print(f"The ref motion for training do not exist, change to use {env_cfg.ref_motion.motion_files}")
     print(f"Ref motion files: {env_cfg.ref_motion.motion_files}")
-    env_cfg.ref_motion.motion_files = f"{os.getenv('HOME')}/workspace/lumos_ws_new/st_gym/third_party/motions/nix1_joint21/pkl/run2_subject1_0_2600_fps30.pkl"
+    env_cfg.ref_motion.motion_files = f"{os.getenv('HOME')}/workspace/lumos_ws_new/st_gym/third_party/motions/nix2/pkl/原地跳1_100_end_fps60.pkl"
     
     logger.info(f"Ref motion path: {env_cfg.ref_motion.motion_files}")
 

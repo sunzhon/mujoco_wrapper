@@ -524,7 +524,7 @@ class MujocoSimEnv:
             except Exception as e:
                 logger.exception(f"Failed to apply obs override: {e}")
         if ref_motion is not None and "ref_root_pos_w" in locals():
-            ref_motion = torch.cat([ref_motion, ref_root_pos_w,ref_root_quat_wxyz], dim=1)
+            ref_motion = torch.cat([ref_motion, ref_root_pos_w,ref_root_quat_xyzw], dim=1)
         extras = {"ref_motion": ref_motion,"critic_obs": critic_obs, "joint_pos": np.squeeze(joint_pos), "joint_vel": np.squeeze(joint_vel), "joint_tor": joint_tor, "grf": grf}
         return self.obs_buf[0], extras
     

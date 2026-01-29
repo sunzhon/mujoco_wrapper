@@ -98,6 +98,9 @@ def key_call_back( keycode):
     if chr(keycode) == "L":
         control_mode="RL"
         logger.info(f"control mode: {control_mode}")
+    elif chr(keycode) == " ":
+        logger.info("Paused")
+        control_mode = "PAUSE"
     if keycode == glfw.KEY_UP:
         base_velocity[0]+=0.1
         logger.info(f"base velocity: {base_velocity}")
@@ -234,9 +237,11 @@ def run_mujoco(env_cfg: DictConfig, agent_cfg:DictConfig):
             elif control_mode=="RESET":
                 actions=torch.zeros(env.num_env, env.joint_num).to(env.device)
                 env.reset()
-                runner.reset()
+                #runner.reset()
                 if env.ref_motion.frame_idx>1:
                     logger.info(f"Reset, frame idx is {env.ref_motion.frame_idx}")
+            elif control_mode=="PAUSE":
+                time.sleep(0.5)
             else:
                 raise f"unkown control mode"
 

@@ -442,7 +442,7 @@ class MujocoSimEnv:
         # get obs 
         obs, extras = self.get_obs() 
         
-        self.log = (actions,obs, extras)
+        self.log = (actions, obs, extras)
 
         return obs, extras
 
@@ -479,6 +479,9 @@ class MujocoSimEnv:
         self.store_target_q = []
         self.store_ref_motion = []
         self.store_extras = []
+        self.store_q = []
+        self.store_dq = []
+        self.store_tau = []
 
         return 0
 
@@ -489,7 +492,9 @@ class MujocoSimEnv:
         self.store_action.append(actions)
         self.store_ref_motion.append(extras["ref_motion"])
         self.store_extras.append(extras)
-
+        self.store_q.append(self.q)
+        self.store_dq.append(self.dq)
+        self.store_tau.append(self.mj_data.ctrl)
 
     def save_log(self, runner):
         # get saving folder
@@ -543,6 +548,19 @@ class MujocoSimEnv:
         mj_extras_path = os.path.join(eval_result_folder, "store_extras.pkl")
         import joblib
         joblib.dump(store_extras, mj_extras_path)    # Save
+
+        # saving feedback when robot working
+        mj_feedback_path = os.path.join(eval_result_folder, "store_feedback.pkl")
+        data = {
+            "frame_number": np.arange(T),
+        }
+        for j, name in enumerate(joint_names):
+            data[f"{name}_pos"] = np.array(self.store_q)
+            data[f"{name}_vel"] = np.array(self.store_dq)
+            data[f"{name}_torque"] = np.array(self.store_tau)
+
+        pd_data = pd.DataFrame(data)
+        pd_data.to_csv(mj_feedback_path)
 
         logger.info(f"Successfully saving mj data  with shape {store_ref_motion.shape}: in {eval_result_folder}")
 

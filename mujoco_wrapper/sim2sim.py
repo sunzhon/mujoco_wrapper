@@ -547,17 +547,20 @@ class MujocoSimEnv:
 
         mj_extras_path = os.path.join(eval_result_folder, "store_extras.pkl")
         import joblib
+        import pandas as pd
         joblib.dump(store_extras, mj_extras_path)    # Save
 
         # saving feedback when robot working
-        mj_feedback_path = os.path.join(eval_result_folder, "store_feedback.pkl")
+        mj_feedback_path = os.path.join(eval_result_folder, "store_feedback.csv")
         data = {
-            "frame_number": np.arange(T),
         }
-        for j, name in enumerate(joint_names):
-            data[f"{name}_pos"] = np.array(self.store_q)
-            data[f"{name}_vel"] = np.array(self.store_dq)
-            data[f"{name}_torque"] = np.array(self.store_tau)
+        q = np.array(self.store_q).squeeze()
+        dq = np.array(self.store_dq).squeeze()
+        tau = np.array(self.store_tau).squeeze()
+        for j, name in enumerate(self.mujoco_joint_names):
+            data[f"{name}_pos"] = q[:,j]
+            data[f"{name}_vel"] = dq[:,j]
+            data[f"{name}_torque"] = tau[:,j]
 
         pd_data = pd.DataFrame(data)
         pd_data.to_csv(mj_feedback_path)

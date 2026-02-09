@@ -151,7 +151,7 @@ def run_mujoco(env_cfg: DictConfig, agent_cfg:DictConfig):
     
     logger.info(f"Ref motion path: {env_cfg.ref_motion.motion_files}")
 
-    env_cfg.ref_motion.frame_begin = 820 #0 #175
+    env_cfg.ref_motion.frame_begin = None #0 #175
     env_cfg.ref_motion.frame_end =  None #2650
     env_cfg.ref_motion.ref_length_s= None #12.1+4
     env_cfg.ref_motion.random_start = False

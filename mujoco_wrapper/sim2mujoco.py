@@ -176,6 +176,8 @@ def run_mujoco(env_cfg: DictConfig, agent_cfg:DictConfig):
     env_cfg.ref_motion.specify_init_values = specify_init_values #if env_cfg.ref_motion.specify_init_values is not None else None
 
     specify_final_values = {}
+    specify_final_values["root_rot_w"] = 1
+    specify_final_values["root_pos_z"] = 0.4
     specify_final_values["left_hip_pitch_joint_dof_pos"] = -0.37
     specify_final_values["right_hip_pitch_joint_dof_pos"] = -0.37
     specify_final_values["left_hip_roll_joint_dof_pos"] = 0.0

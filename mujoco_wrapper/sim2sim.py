@@ -357,6 +357,8 @@ class MujocoSimEnv:
         last_actions = self.last_actions
         actions = self.last_actions
         p_last_actions = last_actions
+        # Keep MuJoCo inference compatible with training configs that include fall-recovery flags.
+        recovery_phase = torch.zeros((self.num_env, 1), dtype=torch.float32, device=self.device)
 
         #6) choose necessary obs and critic_obs terms
         obs_list=[]

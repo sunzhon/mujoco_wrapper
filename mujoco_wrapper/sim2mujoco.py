@@ -173,23 +173,20 @@ def run_mujoco(env_cfg: DictConfig, agent_cfg:DictConfig):
     specify_init_values["right_shoulder_pitch_joint_dof_pos"] = 0.0
     specify_init_values["left_elbow_joint_dof_pos"] = 1.2
     specify_init_values["right_elbow_joint_dof_pos"] = 1.2
-    env_cfg.ref_motion.specify_init_values = specify_init_values #if env_cfg.ref_motion.specify_init_values is not None else None
+    env_cfg.ref_motion.specify_init_values = specify_init_values  #specify_init_values #if env_cfg.ref_motion.specify_init_values is not None else None
 
     specify_final_values = {}
+    specify_final_values["root_rot_x"] = 0
+    specify_final_values["root_rot_y"] = 0
+    specify_final_values["root_rot_z"] = 0
     specify_final_values["root_rot_w"] = 1
     specify_final_values["root_pos_z"] = 0.4
     specify_final_values["left_hip_pitch_joint_dof_pos"] = -0.37
     specify_final_values["right_hip_pitch_joint_dof_pos"] = -0.37
-    specify_final_values["left_hip_roll_joint_dof_pos"] = 0.0
-    specify_final_values["right_hip_roll_joint_dof_pos"] = 0.0
-    specify_final_values["left_hip_yaw_joint_dof_pos"] = 0.0
-    specify_final_values["right_hip_yaw_joint_dof_pos"] = 0.0
     specify_final_values["left_knee_joint_dof_pos"] = 0.74
     specify_final_values["right_knee_joint_dof_pos"] = 0.74
     specify_final_values["left_ankle_pitch_joint_dof_pos"] = -0.37
     specify_final_values["right_ankle_pitch_joint_dof_pos"] = -0.37
-    specify_final_values["left_ankle_roll_joint_dof_pos"] = 0.0
-    specify_final_values["right_ankle_roll_joint_dof_pos"] = 0.0
     specify_final_values["left_shoulder_roll_joint_dof_pos"] = 0.25
     specify_final_values["right_shoulder_roll_joint_dof_pos"] = -0.25
     specify_final_values["left_shoulder_pitch_joint_dof_pos"] = 0.0

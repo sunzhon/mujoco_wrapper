@@ -120,6 +120,7 @@ def key_call_back( keycode):
         base_velocity[2] -=0.1
         logger.info(f"base velocity: {base_velocity}")
 
+
 @hydra_mj_config(args_cli)
 def run_mujoco(env_cfg: DictConfig, agent_cfg:DictConfig):
     """
@@ -155,6 +156,9 @@ def run_mujoco(env_cfg: DictConfig, agent_cfg:DictConfig):
     env_cfg.ref_motion.frame_end =  None #2650
     env_cfg.ref_motion.ref_length_s= None #12.1+4
     env_cfg.ref_motion.random_start = False
+    env_cfg.ref_motion.final_transition_start_before_end_s = 1.5
+    env_cfg.ref_motion.transition_time_s = 0.5
+    env_cfg.ref_motion.final_hold_time_s = 10
     specify_init_values = {}
     specify_init_values["root_rot_x"] = 0
     specify_init_values["root_rot_y"] = 0
@@ -173,26 +177,35 @@ def run_mujoco(env_cfg: DictConfig, agent_cfg:DictConfig):
     specify_init_values["right_shoulder_pitch_joint_dof_pos"] = 0.0
     specify_init_values["left_elbow_joint_dof_pos"] = 1.2
     specify_init_values["right_elbow_joint_dof_pos"] = 1.2
-    env_cfg.ref_motion.specify_init_values = specify_init_values  #specify_init_values #if env_cfg.ref_motion.specify_init_values is not None else None
+    env_cfg.ref_motion.specify_init_values = None  #specify_init_values #if env_cfg.ref_motion.specify_init_values is not None else None
 
     specify_final_values = {}
-    specify_final_values["root_rot_x"] = 0
-    specify_final_values["root_rot_y"] = 0
-    specify_final_values["root_rot_z"] = 0
-    specify_final_values["root_rot_w"] = 1
-    specify_final_values["root_pos_z"] = 0.4
-    specify_final_values["left_hip_pitch_joint_dof_pos"] = -0.37
-    specify_final_values["right_hip_pitch_joint_dof_pos"] = -0.37
-    specify_final_values["left_knee_joint_dof_pos"] = 0.74
-    specify_final_values["right_knee_joint_dof_pos"] = 0.74
-    specify_final_values["left_ankle_pitch_joint_dof_pos"] = -0.37
-    specify_final_values["right_ankle_pitch_joint_dof_pos"] = -0.37
+    specify_final_values["root_rot_x"] = 0.0
+    specify_final_values["root_rot_y"] = 0.0
+    specify_final_values["root_rot_z"] = 0.0
+    specify_final_values["root_rot_w"] = 1.0
+    specify_final_values["root_pos_z"] = 0.43
+    specify_final_values["left_hip_pitch_joint_dof_pos"] = -0.25
+    specify_final_values["right_hip_pitch_joint_dof_pos"] = -0.25
+    specify_final_values["left_hip_roll_joint_dof_pos"] = 0.0
+    specify_final_values["right_hip_roll_joint_dof_pos"] = 0.0
+    specify_final_values["left_hip_yaw_joint_dof_pos"] = 0.0
+    specify_final_values["right_hip_yaw_joint_dof_pos"] = 0.0
+    specify_final_values["left_knee_joint_dof_pos"] = 0.50
+    specify_final_values["right_knee_joint_dof_pos"] = 0.50
+    specify_final_values["left_ankle_pitch_joint_dof_pos"] = -0.25
+    specify_final_values["right_ankle_pitch_joint_dof_pos"] = -0.25
+    specify_final_values["left_ankle_roll_joint_dof_pos"] = 0.0
+    specify_final_values["right_ankle_roll_joint_dof_pos"] = 0.0
+    specify_final_values["torso_joint_dof_pos"] = 0.0
+    specify_final_values["left_shoulder_pitch_joint_dof_pos"] = 0.18
+    specify_final_values["right_shoulder_pitch_joint_dof_pos"] = 0.18
     specify_final_values["left_shoulder_roll_joint_dof_pos"] = 0.25
     specify_final_values["right_shoulder_roll_joint_dof_pos"] = -0.25
-    specify_final_values["left_shoulder_pitch_joint_dof_pos"] = 0.0
-    specify_final_values["right_shoulder_pitch_joint_dof_pos"] = 0.0
-    specify_final_values["left_elbow_joint_dof_pos"] = 1.2
-    specify_final_values["right_elbow_joint_dof_pos"] = 1.2
+    specify_final_values["left_shoulder_yaw_joint_dof_pos"] = -0.14
+    specify_final_values["right_shoulder_yaw_joint_dof_pos"] = 0.14
+    specify_final_values["left_elbow_joint_dof_pos"] = 0.52
+    specify_final_values["right_elbow_joint_dof_pos"] = 0.52
     env_cfg.ref_motion.specify_final_values = specify_final_values #if env_cfg.ref_motion.specify_init_values is not None else None
     env = MujocoSimEnv(env_cfg, args_cli)
 
@@ -233,7 +246,7 @@ def run_mujoco(env_cfg: DictConfig, agent_cfg:DictConfig):
                 actions = policy(obs) # update policy with higher frq, but use low ref frq
                 if args_cli.saving_data:
                     env.update_log(actions, obs, extras)
-                if(env.ref_motion.frame_idx==env.ref_motion.clip_frame_num-4):
+                if env.ref_motion.frame_idx >= env.ref_motion.clip_frame_num:
                     logger.info(f"✅ Done, frame idx is {env.ref_motion.frame_idx}")
                     if not args_cli.saving_data:
                         env.reset()

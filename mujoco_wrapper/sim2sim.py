@@ -242,12 +242,7 @@ class MujocoSimEnv:
         ref_motion_cfg.random_start = False
         ref_motion_cfg.device = self.device
         
-        # padding key was not added
-        if ref_motion_cfg.specify_init_values is not None:
-            for k1 in self.mujoco_joint_names:
-                key = k1+"_dof_pos"
-                if key not in ref_motion_cfg.specify_init_values.keys():
-                    ref_motion_cfg.specify_init_values[key] = 0.0
+        self._pad_ref_motion_static_pose_values(ref_motion_cfg)
 
         # loading ref motion
         self.ref_motion = RefMotionLoader(ref_motion_cfg)
@@ -262,6 +257,37 @@ class MujocoSimEnv:
         root_pos_fields = ['root_pos_x', 'root_pos_y', 'root_pos_z', 'root_rot_w', 'root_rot_x', 'root_rot_y', 'root_rot_z']
         init_root_pos_index = [self.ref_motion.trajectory_fields.index(key) for key in root_pos_fields]
         self.init_root_pos = self.ref_motion.preloaded_s[0,init_root_pos_index]
+
+    def _pad_ref_motion_static_pose_values(self, ref_motion_cfg):
+        # Pad unspecified stand-pose terms so the transition target is a static
+        # pose instead of mixing stand joint positions with the motion's old velocities.
+        ref_fields = []
+        for field_group in ("init_state_fields", "style_fields", "style_goal_fields", "expressive_goal_fields"):
+            fields = getattr(ref_motion_cfg, field_group, None)
+            if fields is not None:
+                ref_fields.extend(fields)
+
+        for specified_values in (ref_motion_cfg.specify_init_values, ref_motion_cfg.specify_final_values):
+            if specified_values is None:
+                continue
+            for key in [
+                "root_vel_x_b", "root_vel_y_b", "root_vel_z_b",
+                "root_ang_vel_x_b", "root_ang_vel_y_b", "root_ang_vel_z_b",
+                "root_vel_x_w", "root_vel_y_w", "root_vel_z_w",
+                "root_ang_vel_x_w", "root_ang_vel_y_w", "root_ang_vel_z_w",
+            ]:
+                if key not in specified_values.keys():
+                    specified_values[key] = 0.0
+            for joint_name in self.mujoco_joint_names:
+                pos_key = joint_name + "_dof_pos"
+                vel_key = joint_name + "_dof_vel"
+                if pos_key not in specified_values.keys():
+                    specified_values[pos_key] = 0.0
+                if vel_key not in specified_values.keys():
+                    specified_values[vel_key] = 0.0
+            for field in ref_fields:
+                if "_vel_" in field and field not in specified_values.keys():
+                    specified_values[field] = 0.0
 
     def set_commands(self, velocity_commands):
         self.base_velocity[:,0] =  velocity_commands[0]
@@ -432,9 +458,12 @@ class MujocoSimEnv:
 
         # updating ref motion
         if hasattr(self,"ref_motion"):
-            if(self.ref_motion.frame_idx==self.ref_motion.clip_frame_num-1):
-                self.ref_motion.reset()
-                logger.info(f"📌 Reset ref motion, Loading ref motion from begin")
+            if self.ref_motion.frame_idx >= self.ref_motion.clip_frame_num:
+                if getattr(self.cfg.ref_motion, "hold_final_frame", False):
+                    self.ref_motion.frame_idx[:] = self.ref_motion.clip_frame_num - 1
+                else:
+                    self.ref_motion.reset()
+                    logger.info(f"📌 Reset ref motion, Loading ref motion from begin")
             self.ref_motion.step()
 
         self.step_counter+=1
@@ -883,4 +912,3 @@ class InferenceRunner:
 
 
         return rknn_action
-

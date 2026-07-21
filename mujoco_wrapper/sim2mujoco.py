@@ -120,6 +120,7 @@ def key_call_back( keycode):
         base_velocity[2] -=0.1
         logger.info(f"base velocity: {base_velocity}")
 
+
 @hydra_mj_config(args_cli)
 def run_mujoco(env_cfg: DictConfig, agent_cfg:DictConfig):
     """
@@ -151,7 +152,7 @@ def run_mujoco(env_cfg: DictConfig, agent_cfg:DictConfig):
     
     logger.info(f"Ref motion path: {env_cfg.ref_motion.motion_files}")
 
-    env_cfg.ref_motion.frame_begin = 0 #0 #175
+    env_cfg.ref_motion.frame_begin = 0 #175
     env_cfg.ref_motion.frame_end =  None #2650
     env_cfg.ref_motion.ref_length_s= None #12.1+4
     env_cfg.ref_motion.random_start = False
@@ -176,26 +177,35 @@ def run_mujoco(env_cfg: DictConfig, agent_cfg:DictConfig):
     specify_init_values["right_shoulder_pitch_joint_dof_pos"] = 0.0
     specify_init_values["left_elbow_joint_dof_pos"] = 1.2
     specify_init_values["right_elbow_joint_dof_pos"] = 1.2
-    env_cfg.ref_motion.specify_init_values = specify_init_values  #specify_init_values #if env_cfg.ref_motion.specify_init_values is not None else None
+    env_cfg.ref_motion.specify_init_values = None  #specify_init_values #if env_cfg.ref_motion.specify_init_values is not None else None
 
     specify_final_values = {}
-    specify_final_values["root_rot_x"] = 0
-    specify_final_values["root_rot_y"] = 0
-    specify_final_values["root_rot_z"] = 0
-    specify_final_values["root_rot_w"] = 1
-    specify_final_values["root_pos_z"] = 0.4
-    specify_final_values["left_hip_pitch_joint_dof_pos"] = -0.37
-    specify_final_values["right_hip_pitch_joint_dof_pos"] = -0.37
-    specify_final_values["left_knee_joint_dof_pos"] = 0.74
-    specify_final_values["right_knee_joint_dof_pos"] = 0.74
-    specify_final_values["left_ankle_pitch_joint_dof_pos"] = -0.37
-    specify_final_values["right_ankle_pitch_joint_dof_pos"] = -0.37
+    specify_final_values["root_rot_x"] = 0.0
+    specify_final_values["root_rot_y"] = 0.0
+    specify_final_values["root_rot_z"] = 0.0
+    specify_final_values["root_rot_w"] = 1.0
+    specify_final_values["root_pos_z"] = 0.43
+    specify_final_values["left_hip_pitch_joint_dof_pos"] = -0.25
+    specify_final_values["right_hip_pitch_joint_dof_pos"] = -0.25
+    specify_final_values["left_hip_roll_joint_dof_pos"] = 0.0
+    specify_final_values["right_hip_roll_joint_dof_pos"] = 0.0
+    specify_final_values["left_hip_yaw_joint_dof_pos"] = 0.0
+    specify_final_values["right_hip_yaw_joint_dof_pos"] = 0.0
+    specify_final_values["left_knee_joint_dof_pos"] = 0.50
+    specify_final_values["right_knee_joint_dof_pos"] = 0.50
+    specify_final_values["left_ankle_pitch_joint_dof_pos"] = -0.25
+    specify_final_values["right_ankle_pitch_joint_dof_pos"] = -0.25
+    specify_final_values["left_ankle_roll_joint_dof_pos"] = 0.0
+    specify_final_values["right_ankle_roll_joint_dof_pos"] = 0.0
+    specify_final_values["torso_joint_dof_pos"] = 0.0
+    specify_final_values["left_shoulder_pitch_joint_dof_pos"] = 0.18
+    specify_final_values["right_shoulder_pitch_joint_dof_pos"] = 0.18
     specify_final_values["left_shoulder_roll_joint_dof_pos"] = 0.25
     specify_final_values["right_shoulder_roll_joint_dof_pos"] = -0.25
-    specify_final_values["left_shoulder_pitch_joint_dof_pos"] = 0.0
-    specify_final_values["right_shoulder_pitch_joint_dof_pos"] = 0.0
-    specify_final_values["left_elbow_joint_dof_pos"] = 1.2
-    specify_final_values["right_elbow_joint_dof_pos"] = 1.2
+    specify_final_values["left_shoulder_yaw_joint_dof_pos"] = -0.14
+    specify_final_values["right_shoulder_yaw_joint_dof_pos"] = 0.14
+    specify_final_values["left_elbow_joint_dof_pos"] = 0.52
+    specify_final_values["right_elbow_joint_dof_pos"] = 0.52
     env_cfg.ref_motion.specify_final_values = specify_final_values #if env_cfg.ref_motion.specify_init_values is not None else None
     env = MujocoSimEnv(env_cfg, args_cli)
 
@@ -215,58 +225,63 @@ def run_mujoco(env_cfg: DictConfig, agent_cfg:DictConfig):
 
 
     with mujoco.viewer.launch_passive(env.mj_model, env.mj_data, key_callback=key_call_back, show_right_ui=False, show_left_ui=False) as viewer:
-        cam = viewer.cam
-        cam.distance = 4.0 ;cam.azimuth = 135; cam.elevation = -10; cam.lookat = [0,0,0]
-        cam.type = mujoco.mjtCamera.mjCAMERA_TRACKING; cam.trackbodyid=1;
+        try:
+            cam = viewer.cam
+            cam.distance = 4.0 ;cam.azimuth = 135; cam.elevation = -10; cam.lookat = [0,0,0]
+            cam.type = mujoco.mjtCamera.mjCAMERA_TRACKING; cam.trackbodyid=1;
 
-        viewer.opt.geomgroup[:] = [0, 1, 1, 1, 0, 0]
+            viewer.opt.geomgroup[:] = [0, 1, 1, 1, 0, 0]
 
-        # adding capsule gemos for vis traj tracking
-        add_visual_capsule(viewer.user_scn, np.zeros(3), np.array([0.001, 0, 0]), 0.04, np.array([1, 0, 0, 1]))
-        for _ in range(10):
-            add_visual_capsule(viewer.user_scn, np.zeros(3), np.array([0.001, 0, 0]), 0.04, np.array([0, 1, 0, 1]))
+            # adding capsule gemos for vis traj tracking
+            add_visual_capsule(viewer.user_scn, np.zeros(3), np.array([0.001, 0, 0]), 0.04, np.array([1, 0, 0, 1]))
+            for _ in range(10):
+                add_visual_capsule(viewer.user_scn, np.zeros(3), np.array([0.001, 0, 0]), 0.04, np.array([0, 1, 0, 1]))
 
-        while viewer.is_running():
-            cam.type=mujoco.mjtCamera.mjCAMERA_TRACKING
-            step_start = time.time()
-            # Obtain an observation
-            env.set_commands(base_velocity)
-            obs, extras = env.step(actions)
-            if control_mode=="RL":
-                actions = policy(obs) # update policy with higher frq, but use low ref frq
-                if args_cli.saving_data:
-                    env.update_log(actions, obs, extras)
-                if(env.ref_motion.frame_idx==env.ref_motion.clip_frame_num-4):
-                    logger.info(f"✅ Done, frame idx is {env.ref_motion.frame_idx}")
-                    if not args_cli.saving_data:
-                        env.reset()
-                        runner.reset()
-                    else:
-                        break
-            elif control_mode=="STANDUP":
-                actions=torch.zeros(env.num_env, env.joint_num).to(env.device)
-                #env.reset()
-            elif control_mode=="RESET":
-                actions=torch.zeros(env.num_env, env.joint_num).to(env.device)
-                env.reset()
-                #runner.reset()
-                if env.ref_motion.frame_idx>1:
-                    logger.info(f"Reset, frame idx is {env.ref_motion.frame_idx}")
-            elif control_mode=="PAUSE":
-                time.sleep(0.5)
-            else:
-                raise f"unkown control mode"
+            while viewer.is_running():
+                cam.type=mujoco.mjtCamera.mjCAMERA_TRACKING
+                step_start = time.time()
+                # Obtain an observation
+                env.set_commands(base_velocity)
+                obs, extras = env.step(actions)
+                if control_mode=="RL":
+                    actions = policy(obs) # update policy with higher frq, but use low ref frq
+                    if args_cli.saving_data:
+                        env.update_log(actions, obs, extras)
+                    if env.ref_motion.frame_idx >= env.ref_motion.clip_frame_num:
+                        logger.info(f"✅ Done, frame idx is {env.ref_motion.frame_idx}")
+                        if not args_cli.saving_data:
+                            env.reset()
+                            runner.reset()
+                        else:
+                            break
+                elif control_mode=="STANDUP":
+                    actions=torch.zeros(env.num_env, env.joint_num).to(env.device)
+                    #env.reset()
+                elif control_mode=="RESET":
+                    actions=torch.zeros(env.num_env, env.joint_num).to(env.device)
+                    env.reset()
+                    #runner.reset()
+                    if env.ref_motion.frame_idx>1:
+                        logger.info(f"Reset, frame idx is {env.ref_motion.frame_idx}")
+                elif control_mode=="PAUSE":
+                    time.sleep(0.5)
+                else:
+                    raise f"unkown control mode"
 
-            # visualizing robot joints
-            if robot_bodies is not None:
-                for i,idx in enumerate(body_index):
-                    viewer.user_scn.geoms[1+i].pos = env.ref_motion.data[:, idx]
-                
-            viewer.sync()
-            time_until_next_step = env.step_dt - (time.time() - step_start)
-            viewer.user_scn.geoms[0].pos = (0,0,0)
-            if time_until_next_step > 0:
-                time.sleep(time_until_next_step)
+                # visualizing robot joints
+                if robot_bodies is not None:
+                    for i,idx in enumerate(body_index):
+                        viewer.user_scn.geoms[1+i].pos = env.ref_motion.data[:, idx]
+
+                viewer.sync()
+                time_until_next_step = env.step_dt - (time.time() - step_start)
+                viewer.user_scn.geoms[0].pos = (0,0,0)
+                if time_until_next_step > 0:
+                    time.sleep(time_until_next_step)
+        finally:
+            viewer.close()
+            if glfw.get_current_context() is not None:
+                glfw.terminate()
 
         # save log
         if args_cli.saving_data:
@@ -274,6 +289,8 @@ def run_mujoco(env_cfg: DictConfig, agent_cfg:DictConfig):
         if args_cli.export_rknn:
             # test rknn  and save testing results
             store_rknn_action = runner.test_rknn(env.store_obs, env.store_action)
+
+    raise SystemExit(0)
 
 
 

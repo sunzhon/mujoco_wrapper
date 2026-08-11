@@ -152,7 +152,7 @@ def run_mujoco(env_cfg: DictConfig, agent_cfg:DictConfig):
     
     logger.info(f"Ref motion path: {env_cfg.ref_motion.motion_files}")
 
-    env_cfg.ref_motion.frame_begin = 0 #175
+    env_cfg.ref_motion.frame_begin = 3800 #175
     env_cfg.ref_motion.frame_end =  None #2650
     env_cfg.ref_motion.ref_length_s= None #12.1+4
     env_cfg.ref_motion.random_start = False
@@ -177,7 +177,7 @@ def run_mujoco(env_cfg: DictConfig, agent_cfg:DictConfig):
     specify_init_values["right_shoulder_pitch_joint_dof_pos"] = 0.0
     specify_init_values["left_elbow_joint_dof_pos"] = 1.2
     specify_init_values["right_elbow_joint_dof_pos"] = 1.2
-    env_cfg.ref_motion.specify_init_values = None  #specify_init_values #if env_cfg.ref_motion.specify_init_values is not None else None
+    env_cfg.ref_motion.specify_init_values = specify_init_values #if env_cfg.ref_motion.specify_init_values is not None else None
 
     specify_final_values = {}
     specify_final_values["root_rot_x"] = 0.0
@@ -249,11 +249,12 @@ def run_mujoco(env_cfg: DictConfig, agent_cfg:DictConfig):
                         env.update_log(actions, obs, extras)
                     if env.ref_motion.frame_idx >= env.ref_motion.clip_frame_num:
                         logger.info(f"✅ Done, frame idx is {env.ref_motion.frame_idx}")
-                        if not args_cli.saving_data:
+                        if args_cli.saving_data:
+                            env.save_log(runner)
+                            break
+                        else:
                             env.reset()
                             runner.reset()
-                        else:
-                            break
                 elif control_mode=="STANDUP":
                     actions=torch.zeros(env.num_env, env.joint_num).to(env.device)
                     #env.reset()
@@ -278,17 +279,13 @@ def run_mujoco(env_cfg: DictConfig, agent_cfg:DictConfig):
                 viewer.user_scn.geoms[0].pos = (0,0,0)
                 if time_until_next_step > 0:
                     time.sleep(time_until_next_step)
+        except KeyboardInterrupt:
+            logger.info("Interrupted by user, exiting...")
+            os._exit(0)
         finally:
             viewer.close()
             if glfw.get_current_context() is not None:
                 glfw.terminate()
-
-        # save log
-        if args_cli.saving_data:
-            env.save_log(runner)
-        if args_cli.export_rknn:
-            # test rknn  and save testing results
-            store_rknn_action = runner.test_rknn(env.store_obs, env.store_action)
 
     raise SystemExit(0)
 
